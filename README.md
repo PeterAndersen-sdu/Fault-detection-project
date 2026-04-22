@@ -1,5 +1,15 @@
 # Fault-detection-project
 
+## Codebase structure
+
+* "fdd/..." contains the classes and functions for computation (code for preprocessing, code for each fd-method, etc).
+* "data/..." contains the raw .mat data files.
+* "notebooks/..." at the moment, contains the old .ipynb file and can be used for visualizations etc.
+* main.ipynb is the main pipeline of the code. It imports the functions from "fdd" and executes them for the given data.
+
+
+## Project description
+
 Course Project
 Fault Detection and Diagnosis in Engineering Systems, 2026
 Important Information:
