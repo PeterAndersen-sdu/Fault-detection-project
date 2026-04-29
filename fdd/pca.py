@@ -35,9 +35,16 @@ def pca_transform(X: pd.DataFrame, n_components: int) -> pd.DataFrame:
 
     # Step 5: Project standardized data X into PCA space to get Z
     Z = X.to_numpy() @ projection_matrix
-
-    return pd.DataFrame(
+    
+    Z_df = pd.DataFrame(
         Z,
         index=X.index,
         columns=[f"Z{i+1}" for i in range(n_components)],
     )
+
+    evr = pd.Series(
+        eigenvalues[sorted_indices[:n_components]] / eigenvalues.sum(),
+        index=[f"Z{i+1}" for i in range(n_components)]
+    )
+
+    return Z_df, evr 
