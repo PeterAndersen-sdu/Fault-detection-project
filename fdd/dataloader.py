@@ -49,7 +49,7 @@ class DataLoader:
         self.file_path = Path(file_path)
         self.sensor_columns = sensor_columns or self.DEFAULT_SENSOR_COLUMNS
 
-    # Loads the .mat file and extracts datasets for Set1_1, Set1_2, and Set1_3.
+    # Loads the .mat file and extracts datasets
     def load(self) -> Dict[str, TimeSeriesDataset]:
         """
         Returns a dictionary like:
@@ -63,9 +63,11 @@ class DataLoader:
             raise FileNotFoundError(f"Data file not found: {self.file_path}")
 
         raw = loadmat(self.file_path, squeeze_me=True, struct_as_record=False)
+        
+        set_names = [name for name in raw.keys() if name.startswith("Set") or name.startswith("T")]
 
         datasets = {}
-        for set_name in ["Set1_1", "Set1_2", "Set1_3"]:
+        for set_name in set_names:
             sensors_df = self._extract_set(raw, set_name)
 
             datasets[set_name] = TimeSeriesDataset(
@@ -90,9 +92,8 @@ class DataLoader:
 
         set_obj = raw[set_name]
 
-        # ---- Adjust these two lines if needed for your exact .mat layout ----
+        # The Set* entries are already 2D numeric arrays in this dataset.
         sensor_matrix = np.asarray(set_obj[:, :23], dtype=float)
-        # ---------------------------------------------------------------------
 
         sensors_df = pd.DataFrame(sensor_matrix, columns=self.sensor_columns)
 
