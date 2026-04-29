@@ -18,33 +18,48 @@ import numpy as np
 import pandas as pd
 
 
-# Computes the PCA projection Z = X * P using the top principal components.
-def pca_transform(X: pd.DataFrame, n_components: int) -> pd.DataFrame:
-    # Step 1: Compute covariance matrix
+def pca_fit(X: pd.DataFrame, n_components: int):
+    """
+    Fit PCA model on training/healthy data.
+    """
     covariance_matrix = np.cov(X, rowvar=False)
 
-    # Step 2: Eigen decomposition
     eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
 
-    # Step 3: Sort eigenvalues and eigenvectors
     sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
     sorted_eigenvectors = eigenvectors[:, sorted_indices]
 
-    # Step 4: Select top k eigenvectors
     projection_matrix = sorted_eigenvectors[:, :n_components]
 
-    # Step 5: Project standardized data X into PCA space to get Z
-    Z = X.to_numpy() @ projection_matrix
-    
+    evr = pd.Series(
+        sorted_eigenvalues[:n_components] / sorted_eigenvalues.sum(),
+        index=[f"Z{i+1}" for i in range(n_components)]
+    )
+
+    model = {
+        "projection_matrix": projection_matrix,
+        "eigenvalues": sorted_eigenvalues,
+        "explained_variance_ratio": evr,
+        "n_components": n_components,
+    }
+
+    return model
+
+
+def pca_transform(X: pd.DataFrame, model: dict) -> pd.DataFrame:
+    """
+    Transform data using an already-fitted PCA model.
+    """
+    P = model["projection_matrix"]
+    n_components = model["n_components"]
+
+    Z = X.to_numpy() @ P
+
     Z_df = pd.DataFrame(
         Z,
         index=X.index,
         columns=[f"Z{i+1}" for i in range(n_components)],
     )
 
-    evr = pd.Series(
-        eigenvalues[sorted_indices[:n_components]] / eigenvalues.sum(),
-        index=[f"Z{i+1}" for i in range(n_components)]
-    )
-
-    return Z_df, evr 
+    return Z_df

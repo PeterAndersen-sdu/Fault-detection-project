@@ -43,14 +43,12 @@ class DataLoader:
     # Initializes with path to .mat file and optional sensor column names.
     def __init__(
         self,
-        file_path: str | Path,
         sensor_columns: Optional[List[str]] = None,
     ) -> None:
-        self.file_path = Path(file_path)
         self.sensor_columns = sensor_columns or self.DEFAULT_SENSOR_COLUMNS
 
     # Loads the .mat file and extracts datasets
-    def load(self) -> Dict[str, TimeSeriesDataset]:
+    def load(self, file: str) -> Dict[str, TimeSeriesDataset]:
         """
         Returns a dictionary like:
         {
@@ -59,10 +57,24 @@ class DataLoader:
             "Set1_3": TimeSeriesDataset(...),
         }
         """
-        if not self.file_path.exists():
-            raise FileNotFoundError(f"Data file not found: {self.file_path}")
-
-        raw = loadmat(self.file_path, squeeze_me=True, struct_as_record=False)
+        if file == "FaultyCase1" or file == "fc1" or file == "1":
+            file_path = "data/FaultyCase1.mat"
+        elif file == "Training" or file == "training" or file == "train":
+            file_path = "data/Training.mat"
+        elif file == "FaultyCase2" or file == "fc2" or file == "2":
+            file_path = "data/FaultyCase2.mat"
+        elif file == "FaultyCase3" or file == "fc3" or file == "3":
+            file_path = "data/FaultyCase3.mat"
+        elif file == "FaultyCase4" or file == "fc4" or file == "4":
+            file_path = "data/FaultyCase4.mat"
+        elif file == "FaultyCase5" or file == "fc5" or file == "5":
+            file_path = "data/FaultyCase5.mat"
+        elif file == "FaultyCase6" or file == "fc6" or file == "6":
+            file_path = "data/FaultyCase6.mat"
+        else:
+            raise ValueError(f"Unknown file identifier: {file}")
+        
+        raw = loadmat(file_path, squeeze_me=True, struct_as_record=False)
         
         set_names = [name for name in raw.keys() if name.startswith("Set") or name.startswith("T")]
 
@@ -73,7 +85,7 @@ class DataLoader:
             datasets[set_name] = TimeSeriesDataset(
                 name=set_name,
                 sensors=sensors_df,
-                metadata={"source_file": str(self.file_path), "set_name": set_name},
+                metadata={"source_file": str(file_path), "set_name": set_name},
             )
 
         return datasets
