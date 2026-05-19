@@ -12,11 +12,13 @@ from .dataset import TimeSeriesDataset
 class StandardPreprocessor:
     """
     Standardizes sensor data and optionally creates lagged features
-    for future DPCA-style models.
+    for future DPCA-style models. It can also remove outlier rows using
+    an interquartile range rule before fitting or transforming.
     """
     with_standardization: bool = True
     n_lags: int = 0
     drop_na: bool = True
+    remove_outliers: bool = False
 
     # Internal attributes set during fitting.
     def __post_init__(self) -> None:
@@ -24,10 +26,19 @@ class StandardPreprocessor:
         self.mean_: Optional[pd.Series] = None
         self.std_: Optional[pd.Series] = None
         self.feature_names_out_: Optional[list[str]] = None
+        self.lower_bound_: Optional[pd.Series] = None
+        self.upper_bound_: Optional[pd.Series] = None
 
     # Fits the preprocessor to the dataset, calculating means and stds if needed.
     def fit(self, dataset: TimeSeriesDataset) -> "StandardPreprocessor":
         X = dataset.sensors.copy()
+
+        if self.remove_outliers:
+            self.lower_bound_, self.upper_bound_ = self._compute_outlier_bounds(X)
+            X = self._apply_outlier_bounds(X, self.lower_bound_, self.upper_bound_)
+        else:
+            self.lower_bound_ = None
+            self.upper_bound_ = None
 
         if self.n_lags > 0:
             X = self._build_lagged_dataframe(X, self.n_lags)
@@ -53,6 +64,11 @@ class StandardPreprocessor:
 
         X = dataset.sensors.copy()
 
+        if self.remove_outliers:
+            if self.lower_bound_ is None or self.upper_bound_ is None:
+                raise RuntimeError("Outlier bounds are not available. Call fit() before transform().")
+            X = self._apply_outlier_bounds(X, self.lower_bound_, self.upper_bound_)
+
         if self.n_lags > 0:
             X = self._build_lagged_dataframe(X, self.n_lags)
 
@@ -71,6 +87,7 @@ class StandardPreprocessor:
                     "with_standardization": self.with_standardization,
                     "n_lags": self.n_lags,
                     "drop_na": self.drop_na,
+                    "remove_outliers": self.remove_outliers,
                 },
             },
         )
@@ -89,3 +106,24 @@ class StandardPreprocessor:
             lagged_parts.append(lagged)
 
         return pd.concat(lagged_parts, axis=1)
+
+    # Computes IQR-based bounds from the data used during fit.
+    @staticmethod
+    def _compute_outlier_bounds(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        q1 = df.quantile(0.25)
+        q3 = df.quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        return lower_bound, upper_bound
+
+    # Applies the fitted IQR bounds to remove outlier rows.
+    @staticmethod
+    def _apply_outlier_bounds(
+        df: pd.DataFrame,
+        lower_bound: pd.Series,
+        upper_bound: pd.Series,
+    ) -> pd.DataFrame:
+        mask = ~((df < lower_bound) | (df > upper_bound)).any(axis=1)
+        return df.loc[mask].reset_index(drop=True)
