@@ -4,26 +4,67 @@
 
 # from typing import Hashable
 
+# import numpy as np
+# import pandas as pd
+
+# # Computes the Q-statistic for each sample in X based on its reconstruction from Z.
+# def q_statistic(X, Z):
+#     x_reconstructed = Z @ np.linalg.pinv(Z.values) @ X.values
+#     e = X.values - x_reconstructed
+#     return np.sum(e ** 2, axis=1)
+
+# # Computes Hotelling's T2-statistic for each sample in Z based on the covariance of Z.
+# def t2_statistic(Z):
+#     covariance_matrix = np.cov(Z, rowvar=False)
+#     inv_covariance_matrix = np.linalg.inv(covariance_matrix)
+#     mean_vector = np.mean(Z, axis=0)
+#     t2_values = []
+#     for i in range(Z.shape[0]):
+#         diff = Z.iloc[i].values - mean_vector
+#         t2 = diff.T @ inv_covariance_matrix @ diff
+#         t2_values.append(t2)
+#     return np.array(t2_values)
+
+
 import numpy as np
 import pandas as pd
 
-# Computes the Q-statistic for each sample in X based on its reconstruction from Z.
-def q_statistic(X, Z):
-    x_reconstructed = Z @ np.linalg.pinv(Z.values) @ X.values
-    e = X.values - x_reconstructed
-    return np.sum(e ** 2, axis=1)
 
-# Computes Hotelling's T2-statistic for each sample in Z based on the covariance of Z.
-def t2_statistic(Z):
-    covariance_matrix = np.cov(Z, rowvar=False)
-    inv_covariance_matrix = np.linalg.inv(covariance_matrix)
-    mean_vector = np.mean(Z, axis=0)
-    t2_values = []
-    for i in range(Z.shape[0]):
-        diff = Z.iloc[i].values - mean_vector
-        t2 = diff.T @ inv_covariance_matrix @ diff
-        t2_values.append(t2)
-    return np.array(t2_values)
+def reconstruction(X: pd.DataFrame, scores: pd.DataFrame, model: dict) -> pd.DataFrame:
+    P = model["projection_matrix"]
+
+    X_hat = scores.to_numpy() @ P.T
+
+    return pd.DataFrame(
+        X_hat,
+        index=X.index,
+        columns=X.columns,
+    )
+
+
+def residual_matrix(X: pd.DataFrame, scores: pd.DataFrame, model: dict) -> pd.DataFrame:
+    X_hat = reconstruction(X, scores, model)
+    return X - X_hat
+
+
+def q_statistic(X: pd.DataFrame, scores: pd.DataFrame, model: dict) -> pd.Series:
+    E = residual_matrix(X, scores, model)
+    Q = np.sum(E.to_numpy() ** 2, axis=1)
+
+    return pd.Series(Q, index=X.index, name="Q")
+
+
+def t2_statistic(scores: pd.DataFrame, model: dict) -> pd.Series:
+    n_components = model["n_components"]
+    eigenvalues = model["eigenvalues"][:n_components]
+
+    T = scores.to_numpy()
+    T2 = np.sum((T ** 2) / eigenvalues, axis=1)
+
+    return pd.Series(T2, index=scores.index, name="T2")
+
+
+
 
 #     fdd/statistics.py
 
