@@ -54,10 +54,10 @@ def pca_transform(X: pd.DataFrame, model: dict) -> pd.DataFrame:
     P = model["projection_matrix"]
     n_components = model["n_components"]
 
-    Z = X.to_numpy() @ P
+    T = X.to_numpy() @ P
 
     Z_df = pd.DataFrame(
-        Z,
+        T,
         index=X.index,
         columns=[f"Z{i+1}" for i in range(n_components)],
     )
