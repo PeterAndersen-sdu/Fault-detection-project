@@ -32,13 +32,9 @@ class StandardPreprocessor:
     # Fits the preprocessor to the dataset, calculating means and stds if needed.
     def fit(self, dataset: TimeSeriesDataset) -> "StandardPreprocessor":
         X = dataset.sensors.copy()
-
-        if self.remove_outliers:
-            self.lower_bound_, self.upper_bound_ = self._compute_outlier_bounds(X)
-            X = self._apply_outlier_bounds(X, self.lower_bound_, self.upper_bound_)
-        else:
-            self.lower_bound_ = None
-            self.upper_bound_ = None
+        # Outlier removal is now a separate step; fit does not remove rows.
+        self.lower_bound_ = None
+        self.upper_bound_ = None
 
         if self.n_lags > 0:
             X = self._build_lagged_dataframe(X, self.n_lags)
@@ -63,12 +59,9 @@ class StandardPreprocessor:
             raise RuntimeError("Preprocessor must be fitted before calling transform().")
 
         X = dataset.sensors.copy()
-
-        if self.remove_outliers:
-            if self.lower_bound_ is None or self.upper_bound_ is None:
-                raise RuntimeError("Outlier bounds are not available. Call fit() before transform().")
-            X = self._apply_outlier_bounds(X, self.lower_bound_, self.upper_bound_)
-
+        # NOTE: outlier removal is intentionally not applied here. Use
+        # `compute_outlier_bounds` and `remove_outliers_from_dataset` to
+        # perform that step explicitly before calling `transform`.
         if self.n_lags > 0:
             X = self._build_lagged_dataframe(X, self.n_lags)
 
@@ -95,6 +88,38 @@ class StandardPreprocessor:
     # Convenience method to fit and transform in one step.
     def fit_transform(self, dataset: TimeSeriesDataset) -> TimeSeriesDataset:
         return self.fit(dataset).transform(dataset)
+
+    # Public helper: compute IQR-based outlier bounds from a dataset (on raw sensors)
+    def compute_outlier_bounds(self, dataset: TimeSeriesDataset) -> tuple[pd.Series, pd.Series]:
+        """Compute and return (lower_bound, upper_bound) using IQR rule from dataset.sensors.
+
+        This does not modify the preprocessor state.
+        """
+        X = dataset.sensors.copy()
+        return self._compute_outlier_bounds(X)
+
+    # Public helper: remove outliers from a dataset using provided bounds
+    def remove_outliers_from_dataset(
+        self, dataset: TimeSeriesDataset, lower_bound: pd.Series, upper_bound: pd.Series
+    ) -> TimeSeriesDataset:
+        """Apply outlier bounds to `dataset` and return a cleaned TimeSeriesDataset.
+
+        Removal is applied before lagging (consistent with previous behavior).
+        """
+        X = dataset.sensors.copy()
+        X_clean = self._apply_outlier_bounds(X, lower_bound, upper_bound)
+
+        if self.n_lags > 0:
+            X_clean = self._build_lagged_dataframe(X_clean, self.n_lags)
+
+        if self.drop_na:
+            X_clean = X_clean.dropna().reset_index(drop=True)
+
+        return TimeSeriesDataset(
+            name=f"{dataset.name}_outliers_removed",
+            sensors=X_clean,
+            metadata={**dataset.metadata, "outliers_removed": True},
+        )
 
     # Builds a lagged version of the input dataframe, creating new columns for each lag.
     @staticmethod
