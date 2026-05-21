@@ -38,6 +38,7 @@ class DataLoader:
         "Pos_VC302",
         "Pos_VC101",
         "Pump_Current_PO1",
+        "P_mix_zone"
     ]
 
     # Initializes with path to .mat file and optional sensor column names.
@@ -105,7 +106,7 @@ class DataLoader:
         set_obj = raw[set_name]
 
         # The Set* entries are already 2D numeric arrays in this dataset.
-        sensor_matrix = np.asarray(set_obj[:, :23], dtype=float)
+        sensor_matrix = np.asarray(set_obj[:, :len(self.sensor_columns)], dtype=float)
 
         sensors_df = pd.DataFrame(sensor_matrix, columns=self.sensor_columns)
 

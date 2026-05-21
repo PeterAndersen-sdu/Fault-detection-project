@@ -58,7 +58,7 @@ class FDAModel:
             d = mu_c - xbar
             Sb += Xc.shape[0] * (d @ d.T)
 
-        Sw_reg = Sw + self.eps * np.eye(m)
+        Sw_reg = Sw + self.eps * np.eye(m) # eps is zero by default
 
         eigvals, eigvecs = generalized_eig(Sb, Sw_reg)
         eigvals = np.real(eigvals)
@@ -89,7 +89,7 @@ class FDAModel:
         if not self.fitted:
             raise RuntimeError("FDAModel must be fitted before transform().")
 
-        X_scaled = ((dataset.sensors.copy() - self.mean_) / self.std_).to_numpy()
+        X_scaled = dataset.sensors.copy().to_numpy()
         Z = X_scaled @ self.Wp_
 
         return pd.DataFrame(

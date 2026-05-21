@@ -59,6 +59,9 @@ class StandardPreprocessor:
             raise RuntimeError("Preprocessor must be fitted before calling transform().")
 
         X = dataset.sensors.copy()
+        if self.feature_names_out_ is not None:
+            X = X.reindex(columns=self.feature_names_out_, fill_value=0.0)
+
         # NOTE: outlier removal is intentionally not applied here. Use
         # `compute_outlier_bounds` and `remove_outliers_from_dataset` to
         # perform that step explicitly before calling `transform`.
