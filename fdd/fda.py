@@ -8,7 +8,7 @@ from fdd.dataset import TimeSeriesDataset
 
 
 class FDAModel:
-    def __init__(self, eps=1e-6):
+    def __init__(self, eps=0):
         self.eps = eps
         self.fitted = False
 
@@ -32,7 +32,7 @@ class FDAModel:
 
         self.mean_ = X.mean(axis=0)
         self.std_ = X.std(axis=0, ddof=1).replace(0, 1.0)
-        X_scaled = ((X - self.mean_) / self.std_).to_numpy()
+        X_scaled = X.to_numpy()
 
         n, m = X_scaled.shape
 
